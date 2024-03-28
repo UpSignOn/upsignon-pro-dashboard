@@ -51,6 +51,8 @@ import { send_email, send_email_precheck } from './send_email';
 import { update_user_setting } from './update_user_setting';
 import { extract_emails_not_migrated_users } from './extract_emails_not_migrated_users';
 import { extract_emails_msi_install } from './extract_emails_msi_install';
+import { get_group_entra_config } from './get_group_entra_config';
+import { test_ms_entra } from './test_ms_entra';
 
 export const apiRouter = express.Router();
 
@@ -167,3 +169,8 @@ apiRouter.get('/group-admins', get_group_admins);
 // Settings
 apiRouter.get('/group-settings', get_group_settings);
 apiRouter.post('/group-settings-update', update_group);
+
+// Microsoft Entra
+apiRouter.get('/group-entra-config', get_group_entra_config);
+apiRouter.post('/group-entra-config-update', update_group);
+apiRouter.post('/test-ms-entra', test_ms_entra);
