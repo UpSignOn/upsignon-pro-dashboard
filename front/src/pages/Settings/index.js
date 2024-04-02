@@ -5,6 +5,7 @@ import { GroupAdmins } from './GroupAdmins';
 import { OtherSettings } from './OtherSettings';
 import { ProSetupLink } from './ProSetupLink';
 import { Urls } from './Urls';
+import { MicrosoftEntraConfig } from './MicrosoftEntraConfig';
 
 // Props setIsLoading, isSuperAdmin, otherGroups
 class Settings extends React.Component {
@@ -21,6 +22,7 @@ class Settings extends React.Component {
           otherGroups={this.props.otherGroups}
         />
         <AllowedEmails setIsLoading={this.props.setIsLoading} />
+        <MicrosoftEntraConfig setIsLoading={this.props.setIsLoading} />
       </div>
     );
   }
