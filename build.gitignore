@@ -1,0 +1,10 @@
+logs
+.env*
+.env.*
+back/.env
+front/.env
+*.key
+*.crt
+*.csr
+*.cer
+.DS_STORE

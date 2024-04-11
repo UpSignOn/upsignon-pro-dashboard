@@ -1,13 +1,5 @@
 #!/bin/bash
-cd front
-~/.npm-global/bin/yarn install
-./buildFront.sh
 
-
-cd ../back
-~/.npm-global/bin/yarn install
-~/.npm-global/bin/yarn build-server
-cd ..
-
-~/.npm-global/bin/pm2 stop upsignon-pro-dashboard
-~/.npm-global/bin/pm2 start ./back/dashboard.config.js --update-env
+scriptDir=$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")
+node $scriptDir/replace-public-url.js
+~/.npm-global/bin/pm2 startOrGracefulReload $scriptDir/back/dashboard.config.js --update-env
