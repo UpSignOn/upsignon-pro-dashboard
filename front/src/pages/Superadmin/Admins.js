@@ -1,37 +1,21 @@
 import React from 'react';
 import { baseUrlFetch, groupUrlFetch } from '../../helpers/urlFetch';
 import { i18n } from '../../i18n/i18n';
+import { isReadOnlySuperadmin } from '../../helpers/isReadOnlySuperadmin';
 
 // Props : setIsLoading, groups
 class Admins extends React.Component {
   state = {
     admins: [],
-    newAdminIsSuperadmin: false,
+    adminRole: 'admin', // 'admin' | 'readOnlySuperadmin' | 'superadmin'
     visibleAdminChangeRightsView: [],
   };
   newInputRef = null;
-  adminOrder = null;
 
   fetchAdmins = async () => {
     try {
-      const adminEmails = await groupUrlFetch('/api/admins', 'GET', null);
-      if (!this.adminOrder) {
-        this.adminOrder = [];
-      }
-      this.setState({
-        admins: adminEmails.sort((a, b) => {
-          if (this.adminOrder.indexOf(a.id) === -1) {
-            this.adminOrder.push(a.id);
-          }
-          if (this.adminOrder.indexOf(b.id) === -1) {
-            this.adminOrder.push(b.id);
-          }
-          const idxA = this.adminOrder.indexOf(a.id);
-          const idxB = this.adminOrder.indexOf(b.id);
-          if (idxA < idxB) return -1;
-          else return 1;
-        }),
-      });
+      const admins = await groupUrlFetch('/api/admins', 'GET', null);
+      this.setState({ admins: admins });
     } catch (e) {
       console.error(e);
     }
@@ -48,11 +32,11 @@ class Admins extends React.Component {
       }
       await groupUrlFetch('/api/insert-admin', 'POST', {
         newEmail,
-        isSuperadmin: this.state.newAdminIsSuperadmin,
+        adminRole: this.state.adminRole,
       });
       await this.fetchAdmins();
       this.newInputRef.value = null;
-      this.setState({ newAdminIsSuperadmin: false });
+      this.setState({ adminRole: 'admin' });
     } catch (e) {
       console.error(e);
     } finally {
@@ -74,16 +58,16 @@ class Admins extends React.Component {
       this.props.setIsLoading(false);
     }
   };
-  changeSuperadminStatus = async (adminId, willBeSuperadmin) => {
+  changeSuperadminRole = async (adminId, adminRole) => {
     try {
       this.props.setIsLoading(true);
-      await groupUrlFetch('/api/update-superadmin-status', 'POST', {
+      await groupUrlFetch('/api/update-admin-role', 'POST', {
         adminId,
-        willBeSuperadmin,
+        adminRole,
       });
       await this.fetchAdmins();
 
-      if (willBeSuperadmin) {
+      if (adminRole === 'superadmin' || adminRole === 'readOnlySuperadmin') {
         this.setState((s) => ({
           ...s,
           visibleAdminChangeRightsView: s.visibleAdminChangeRightsView.filter((v) => v !== adminId),
@@ -142,7 +126,7 @@ class Admins extends React.Component {
   }
   render() {
     return (
-      <div style={{ marginTop: 50 }}>
+      <div style={{ marginTop: 20 }}>
         <h2>{i18n.t('sasettings_superadmins')}</h2>
         <div
           style={{
@@ -151,6 +135,7 @@ class Admins extends React.Component {
             alignItems: 'center',
             marginBottom: 20,
           }}
+          className={`${isReadOnlySuperadmin ? 'disabledUI' : ''}`}
         >
           <input
             ref={(r) => {
@@ -159,27 +144,18 @@ class Admins extends React.Component {
             placeholder="admin.email@domain.com"
             style={{ width: 300, marginRight: 10 }}
           />
-          <label>{i18n.t('menu_superadmin')}:</label>
+          <label>{i18n.t('sasettings_superadmin_role')}:</label>
+          <AdminRoleSelect
+            adminRole={this.state.adminRole}
+            onChange={(r) => {
+              this.setState((s) => ({ ...s, adminRole: r }));
+            }}
+          />
           <div
-            className="noSelect"
-            style={{
-              marginLeft: 10,
-              display: 'inline-block',
-              padding: 5,
-              color: 'white',
-              backgroundColor: this.state.newAdminIsSuperadmin
-                ? 'rgb(246, 164, 0)'
-                : 'rgb(44, 82, 132)',
-              borderRadius: 3,
-              cursor: 'pointer',
-            }}
-            onClick={() => {
-              this.setState((s) => ({ ...s, newAdminIsSuperadmin: !s.newAdminIsSuperadmin }));
-            }}
+            className={`action ${isReadOnlySuperadmin ? 'disabledUI' : ''}`}
+            style={{ marginLeft: 10 }}
+            onClick={this.insertAdmin}
           >
-            {this.state.newAdminIsSuperadmin ? i18n.t('yes') : i18n.t('no')}
-          </div>
-          <div className="action" style={{ marginLeft: 10 }} onClick={this.insertAdmin}>
             {i18n.t('sasettings_superadmins_invite')}
           </div>
         </div>
@@ -199,16 +175,26 @@ class Admins extends React.Component {
                 const isChangeRightsViewVisible = this.state.visibleAdminChangeRightsView.includes(
                   admin.id,
                 );
+                const showChangeRightsButton = admin.adminRole === 'admin';
                 return (
                   <React.Fragment key={admin.id}>
                     <tr>
                       <td
-                        style={admin.is_superadmin ? { backgroundColor: 'rgb(246, 164, 0)' } : {}}
+                        style={
+                          admin.adminRole != 'admin' ? { backgroundColor: 'rgb(246, 164, 0)' } : {}
+                        }
                       >
                         {admin.email}
                       </td>
                       <td>{new Date(admin.created_at).toLocaleDateString()}</td>
-                      <td>{admin.is_superadmin ? i18n.t('yes') : i18n.t('no')}</td>
+                      <td>
+                        <AdminRoleSelect
+                          adminRole={admin.adminRole}
+                          onChange={(r) => {
+                            this.changeSuperadminRole(admin.id, r);
+                          }}
+                        />
+                      </td>
                       <td
                         style={{
                           backgroundColor: admin.is_superadmin
@@ -218,17 +204,20 @@ class Admins extends React.Component {
                               : 'red',
                         }}
                       >
-                        {admin.groups?.map((g) => {
-                          return <div key={g.id}>{g.name}</div>;
-                        })}
+                        {admin.adminRole === 'admin' &&
+                          admin.groups?.map((g) => {
+                            return <div key={g.id}>{g.name}</div>;
+                          })}
                       </td>
-                      <td>
+                      <td className={`${isReadOnlySuperadmin ? 'disabledUI' : ''}`}>
                         <div className="action" onClick={() => this.deleteAdmin(admin.id)}>
                           {i18n.t('delete')}
                         </div>
-                        <div className="action" onClick={() => this.openChangeRights(admin.id)}>
-                          {i18n.t('sasettings_admin_change_rights')}
-                        </div>
+                        {showChangeRightsButton && (
+                          <div className="action" onClick={() => this.openChangeRights(admin.id)}>
+                            {i18n.t('sasettings_admin_change_rights')}
+                          </div>
+                        )}
                         <div className="action" onClick={() => this.sendAdminInvite(admin.email)}>
                           {i18n.t('settings_admin_send_invite')}
                         </div>
@@ -240,39 +229,6 @@ class Admins extends React.Component {
                           <div className="action" onClick={() => this.closeChangeRights(admin.id)}>
                             {i18n.t('close')}
                           </div>
-                          {admin.is_superadmin ? (
-                            <div
-                              className="noSelect"
-                              onClick={() => this.changeSuperadminStatus(admin.id, false)}
-                              style={{
-                                display: 'inline-block',
-                                backgroundColor: 'rgb(44, 82, 132)',
-                                padding: 5,
-                                borderRadius: 3,
-                                cursor: 'pointer',
-                                color: 'white',
-                                margin: '5px 0',
-                              }}
-                            >
-                              {i18n.t('sasettings_admin_make_non_superadmin')}
-                            </div>
-                          ) : (
-                            <div
-                              className="noSelect"
-                              onClick={() => this.changeSuperadminStatus(admin.id, true)}
-                              style={{
-                                display: 'inline-block',
-                                backgroundColor: 'rgb(246, 164, 0)',
-                                padding: 5,
-                                borderRadius: 3,
-                                cursor: 'pointer',
-                                color: 'white',
-                                margin: '5px 0',
-                              }}
-                            >
-                              {i18n.t('sasettings_admin_make_superadmin')}
-                            </div>
-                          )}
                           {!admin.is_superadmin && (
                             <div style={{ marginTop: 15, margin: 'auto' }}>
                               {this.props.groups.map((g) => {
@@ -287,6 +243,7 @@ class Admins extends React.Component {
                                         this.updateAdminGroup(admin.id, g.id, !doesBelongToGroup);
                                       }}
                                       checked={doesBelongToGroup}
+                                      disabled={isReadOnlySuperadmin}
                                     />
                                     <div style={{ marginLeft: 5 }}>{g.name}</div>
                                   </div>
@@ -307,5 +264,24 @@ class Admins extends React.Component {
     );
   }
 }
+
+const AdminRoleSelect = (p) => {
+  return (
+    <select
+      value={p.adminRole}
+      onChange={(e) => {
+        p.onChange(e.target.value);
+      }}
+      style={{ marginLeft: 10, marginRight: 10, padding: 5 }}
+      disabled={isReadOnlySuperadmin}
+    >
+      <option value="admin">{i18n.t('sasettings_superadmin_role_admin')}</option>
+      <option value="readOnlySuperadmin">
+        {i18n.t('sasettings_superadmin_role_read_only_superadmin')}
+      </option>
+      <option value="superadmin">{i18n.t('sasettings_superadmin_role_superadmin')}</option>
+    </select>
+  );
+};
 
 export { Admins };

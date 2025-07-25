@@ -12,7 +12,8 @@ export const insert_group = async (req: any, res: any): Promise<void> => {
       name: string;
       adminEmail: string;
       isTrial: boolean;
-      salesEmail: string;
+      salesEmail: string | null;
+      resellerName: string | null;
     } = Joi.attempt(
       req.body,
       Joi.object({
@@ -21,9 +22,13 @@ export const insert_group = async (req: any, res: any): Promise<void> => {
           .pattern(/^.{2,50}$/),
         adminEmail: Joi.string().email().required(),
         isTrial: Joi.boolean(),
-        salesEmail: Joi.string().email(),
+        salesEmail: Joi.string().email().allow(null, ''),
+        resellerName: Joi.string().allow(null),
       }),
     );
+
+    const salesEmail = validatedBody.salesEmail || req.session?.adminEmail;
+
     let newBankSettings = {};
     let expDate = null;
     if (validatedBody.isTrial) {
@@ -33,7 +38,12 @@ export const insert_group = async (req: any, res: any): Promise<void> => {
       expDate.setSeconds(0);
       expDate.setMinutes(0);
       expDate.setHours(0);
-      newBankSettings = { IS_TESTING: true, TESTING_EXPIRATION_DATE: expDate };
+      newBankSettings = {
+        IS_TESTING: true,
+        TESTING_EXPIRATION_DATE: expDate,
+        SALES_REP: salesEmail,
+        RESELLER: validatedBody.resellerName,
+      };
     }
     const groupInsertRes = await db.query(
       'INSERT INTO groups (name, settings) VALUES ($1, $2) RETURNING id, public_id',
@@ -92,7 +102,6 @@ export const insert_group = async (req: any, res: any): Promise<void> => {
 
     const emailConfig = await getEmailConfig();
     const transporter = getMailTransporter(emailConfig, { debug: false });
-    const salesEmail = validatedBody.salesEmail || req.session?.adminEmail;
     const useBcc = salesEmail !== req.session?.adminEmail;
 
     await transporter.sendMail({
