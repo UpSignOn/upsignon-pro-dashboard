@@ -12,6 +12,7 @@
     -> FRONTEND_URL=http://localhost:8090
     -> (do not configure SERVER_URL)
     -> DEV_FALLBACK_ADMIN_EMAIL=devadmin@upsignon.eu
+    -> DEV_FALLBACK_USE_DB_ROLE=false // false makes you superadmin
 
 - run this command in psql
   -> `insert into admins (id, email, admin_role) VALUES ('a035d19a-f5ca-4cfe-a5e6-9440d2f4ef0b', 'devadmin@upsignon.eu', 'superadmin');`
