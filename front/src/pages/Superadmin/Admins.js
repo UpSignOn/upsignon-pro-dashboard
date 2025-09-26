@@ -236,7 +236,11 @@ class Admins extends React.Component {
                         {admin.adminRole === 'admin' && (
                           <>
                             {admin.banks?.map((g) => {
-                              return <div key={g.id}>{g.name}</div>;
+                              return (
+                                <div
+                                  key={g.id}
+                                >{`${g.reseller_name ? `${g.reseller_name}/` : ''}${g.name}`}</div>
+                              );
                             })}
                             {reseller && (
                               <div>
@@ -273,7 +277,14 @@ class Admins extends React.Component {
                           </div>
                           {admin.admin_role != 'superadmin' && (
                             <div style={{ marginTop: 15, margin: 'auto', display: 'flex' }}>
-                              <div style={{ width: 300, marginRight: 30 }}>
+                              <div
+                                style={{
+                                  width: 300,
+                                  marginRight: 30,
+                                  borderRight: '1px solid grey',
+                                }}
+                              >
+                                <h4>{i18n.t('sasettings_direct_banks')}</h4>
                                 {this.props.banks
                                   .filter((b) => !b.reseller_id)
                                   .map((b) => {
@@ -293,7 +304,7 @@ class Admins extends React.Component {
                                   })}
                               </div>
                               <div>
-                                <div>{i18n.t('sasettings_resellers')}</div>
+                                <h4>{i18n.t('sasettings_resellers')}</h4>
                                 {this.state.resellers.map((r) => {
                                   const doesBelongToReseller = admin.reseller_id === r.id;
                                   return (
